@@ -11,7 +11,7 @@ library(haven)
 rm(list=ls())
 
 #1.
-AR<-data.frame(read_sas("C:/Users/Rohan/Desktop/UIC/Fall 23/IDS 462/Week 15/Final Project/Data/annualreports(2).sas7bdat"))
+AR<-data.frame(read_sas("path/annualreports(2).sas7bdat"))
 colnames(AR)
 
 #2.
@@ -86,7 +86,7 @@ anova_result<- aov(PFCI ~ Symbol, data= top_companies_main)
 summary(anova_result)
 
 #14.
-options<-data.frame(read_sas("C:/Users/Rohan/Desktop/UIC/Fall 23/IDS 462/Week 15/Final Project/Data/optionsfile(1).sas7bdat"))
+options<-data.frame(read_sas("path/optionsfile(1).sas7bdat"))
 options[]<-lapply(options,function(x) {attributes(x)<-NULL;x})
 options$expdate<-as.Date(options$expdate, origin='1970-01-01')
 options$capturedate<-as.Date(options$capturedate, origin='1970-01-01')
@@ -120,7 +120,7 @@ average_strike_prices <- filtered_data %>%
 average_strike_prices
 
 #19.
-divd<-data.frame(read_sas("C:/Users/Rohan/Desktop/UIC/Fall 23/IDS 462/Week 15/Final Project/Data/divfile(1).sas7bdat"))
+divd<-data.frame(read_sas("path/divfile(1).sas7bdat"))
 divd[]<-lapply(divd,function(x) {attributes(x)<-NULL;x})
 divd
 divd$date<-as.Date(divd$date)
@@ -136,7 +136,7 @@ total_dividends <- aggregate(DivAmount ~ tic, data = matched_dividends, sum)
 print(total_dividends)
 
 #24.
-price<-data.frame(read_sas("C:/Users/Rohan/Desktop/UIC/Fall 23/IDS 462/Week 15/Final Project/Data/pricesrevised(1).sas7bdat"))
+price<-data.frame(read_sas("path/pricesrevised(1).sas7bdat"))
 price
 
 #25
@@ -174,7 +174,7 @@ merged_data$DividendYield <- with(merged_data, ifelse(is.na(DivAmount) | DivAmou
 print(merged_data)
 
 #31. 
-splitsfile<-data.frame(read_sas("C:/Users/Rohan/Desktop/UIC/Fall 23/IDS 462/Week 15/Final Project/Data/splits(1).sas7bdat"))
+splitsfile<-data.frame(read_sas("path/splits(1).sas7bdat"))
 splitsfile
 
 #32
@@ -264,4 +264,3 @@ AR_2008_filtered <- AR_2008_filtered %>%
 final_output <- AR_2008_filtered %>%
   dplyr::select(Symbol, FScore)
 print(final_output)
-'
