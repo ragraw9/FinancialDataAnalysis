@@ -1,4 +1,4 @@
-# Stock Data Analysis Project
+# Financial Data Analysis
 
 ## Overview
 This project showcases advanced data manipulation and analysis in R, focusing on financial datasets. It includes importing, cleaning, transforming, and analyzing financial data from various sectors.
@@ -7,7 +7,7 @@ This project showcases advanced data manipulation and analysis in R, focusing on
 - R packages required: `fastDummies`, `dplyr`, `MASS`, `rvest`, `XML`, `tidyverse`, `readxl`, `polite`, `haven`
 
 ## File Description
-- `FinancialDataAnalysis.R`: Main R script for data processing and analysis.
+- `Main.R`: Main R script for data processing and analysis.
 
 ## Data Source
 Data is sourced from SAS datasets. File paths within the script will need to be adjusted to your local dataset locations.
