@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Park Explorer — Yellowstone (Prototype)</title>
+<style>
+/* ============ tokens ============ */
+:root{
+  --blue:#1d3bbd;          /* cobalt sky */
+  --water:#2456a8;         /* map water */
+  --green:#3f9b45;         /* kelly */
+  --forest:#2e6f3e;
+  --cream:#f4ecd8;
+  --paper:#f7f0dd;
+  --verm:#e8502a;
+  --ink:#1b1812;
+
+  /* region accents */
+  --acc-mammoth:#c96f4a;
+  --acc-tower:#2e6f3e;
+  --acc-lamar:#d09a2b;
+  --acc-canyon:#b5432e;
+  --acc-lake:#23538f;
+  --acc-oldfaithful:#e8502a;
+
+  --f-display:"Cooper Black","Cooper Std",Recoleta,Georgia,"Times New Roman",serif;
+  --f-mono:"IBM Plex Mono","Space Mono","Courier New",ui-monospace,monospace;
+  --f-cond:Oswald,"Arial Narrow","Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--f-mono);
+  color:var(--ink);
+  background:var(--paper);
+}
+/* paper grain over everything */
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
+  background-image:radial-gradient(rgba(27,24,18,.05) 1px,transparent 1.2px);
+  background-size:5px 5px;mix-blend-mode:multiply;
+}
+a{color:inherit;text-decoration:none}
+.smallcaps{
+  font-family:var(--f-cond);font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;font-stretch:condensed;
+}
+.display{font-family:var(--f-display);font-weight:900}
+
+/* physical chrome: hard offset shadows, keylines */
+.plate{border:2.5px solid var(--ink);box-shadow:5px 5px 0 var(--ink)}
+.plate-sm{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+button{cursor:pointer;font:inherit;color:inherit}
+.btn{
+  display:inline-block;background:var(--verm);color:var(--cream);
+  font-family:var(--f-cond);font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+  padding:.7em 1.6em;border:2.5px solid var(--ink);box-shadow:5px 5px 0 var(--ink);
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--ink)}
+.chip{
+  display:inline-block;background:var(--cream);border:2px solid var(--ink);
+  box-shadow:3px 3px 0 var(--ink);padding:.42em .9em;font-size:.78rem;
+  transition:transform .08s,box-shadow .08s;
+}
+.chip:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.tag{
+  display:inline-block;border:1.5px solid var(--ink);padding:.22em .6em;
+  font-size:.62rem;background:var(--cream);
+}
+.tag.veg{background:#e2e8cf}
+.tag .season{opacity:.65;font-weight:400;letter-spacing:.06em}
+
+.view{animation:enter .35s ease both}
+@keyframes enter{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+
+/* ============ landing ============ */
+.landing{
+  min-height:100vh;background:var(--blue);color:var(--cream);
+  position:relative;overflow:hidden;
+}
+.landing .halftone{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(244,236,216,.06) 1.2px,transparent 1.4px);
+  background-size:7px 7px;
+}
+.landing-inner{position:relative;z-index:2;padding:5vh 5vw;max-width:1400px}
+.landing h1{
+  font-size:clamp(3.4rem,9vw,6.5rem);line-height:.95;color:var(--cream);
+  text-shadow:3px 3px 0 rgba(0,0,0,.25);max-width:7em;
+}
+.landing .tagline{margin:1.2rem 0 2rem;font-size:.95rem;max-width:30em;line-height:1.5}
+.search-row{display:flex;gap:1.1rem;flex-wrap:wrap;align-items:stretch}
+.search-box{
+  background:var(--cream);color:var(--ink);font-family:var(--f-display);
+  font-size:1.6rem;padding:.45em .7em;min-width:min(19em,60vw);
+  border:2.5px solid var(--ink);box-shadow:5px 5px 0 rgba(0,0,0,.45);
+}
+.search-box .caret{animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.try-these{margin-top:1.6rem}
+.try-these .lbl{font-size:.72rem;opacity:.9;margin-right:.8em}
+.try-these .lbl::after{content:" ————";opacity:.5}
+.try-row{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.7rem}
+.try-row .chip{color:var(--ink)}
+.stampbadge{
+  position:absolute;top:4vh;right:4vw;z-index:3;background:var(--cream);color:var(--ink);
+  padding:1rem 1.2rem;text-align:center;transform:rotate(3deg);
+  border:2px dashed var(--ink);outline:6px solid var(--cream);
+  box-shadow:4px 5px 0 rgba(0,0,0,.35);
+}
+.stampbadge .big{font-family:var(--f-cond);font-weight:700;letter-spacing:.15em;font-size:1rem}
+.stampbadge .small{font-size:.58rem;letter-spacing:.12em;margin-top:.4em}
+.infocard{
+  position:absolute;right:4vw;bottom:11vh;z-index:3;width:min(24rem,84vw);
+  background:var(--cream);color:var(--ink);padding:1.1rem 1.3rem;
+  border:2.5px solid var(--ink);box-shadow:6px 6px 0 rgba(0,0,0,.4);
+}
+.infocard h3{font-family:var(--f-cond);font-weight:700;letter-spacing:.06em;font-size:1.05rem}
+.infocard .est{color:var(--verm);font-family:var(--f-cond);font-weight:700;letter-spacing:.12em;font-size:.7rem;margin:.25em 0 .6em}
+.infocard p{font-size:.78rem;line-height:1.55}
+.rubberstamp{
+  position:absolute;right:-1.4rem;bottom:-1.6rem;width:6.4rem;height:6.4rem;border-radius:50%;
+  border:3px double var(--verm);color:var(--verm);display:flex;align-items:center;justify-content:center;
+  text-align:center;font-family:var(--f-cond);font-weight:700;font-size:.6rem;letter-spacing:.12em;
+  transform:rotate(-12deg);background:rgba(244,236,216,.6);text-transform:uppercase;
+}
+.landing-hero{position:absolute;right:0;bottom:0;width:min(62vw,900px);z-index:1;pointer-events:none}
+.feature-strip{
+  position:absolute;left:0;bottom:0;z-index:3;background:var(--cream);color:var(--ink);
+  display:flex;gap:2.2rem;padding:.9rem 5vw .9rem 5vw;flex-wrap:wrap;
+  border-top:2.5px solid var(--ink);max-width:100%;
+}
+.feature-strip span{font-family:var(--f-cond);font-weight:700;letter-spacing:.1em;font-size:.68rem;text-transform:uppercase}
+.feature-strip b{margin-right:.45em;font-size:.85rem}
+
+/* ============ shared header ============ */
+.topbar{
+  display:flex;align-items:center;gap:1.2rem;padding:1rem 4vw;flex-wrap:wrap;
+  border-bottom:2.5px solid var(--ink);background:var(--cream);
+}
+.topbar .lockup{font-family:var(--f-display);font-size:1.25rem;letter-spacing:.01em}
+.backstub{
+  font-family:var(--f-cond);font-weight:700;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+  border:2px dashed var(--ink);padding:.4em .9em;background:var(--paper);
+  box-shadow:2px 2px 0 var(--ink);
+}
+.backstub:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.crumb{font-size:.7rem;opacity:.75;letter-spacing:.08em}
+
+/* ============ park overview ============ */
+.park{min-height:100vh;display:flex;flex-direction:column;background:var(--paper)}
+.park-map-wrap{flex:1;display:flex;justify-content:center;padding:2vh 3vw}
+.park-map-wrap svg{width:min(94vw,880px);height:auto}
+.ephemera{
+  text-align:center;padding:.8rem;border-top:2px solid var(--ink);
+  font-family:var(--f-cond);font-weight:700;font-size:.66rem;letter-spacing:.18em;
+  text-transform:uppercase;opacity:.8;
+}
+.hotspot{cursor:pointer}
+.hotspot .zone{transition:opacity .15s}
+.hotspot:hover .zone,.hotspot:focus .zone{opacity:.55}
+.hotspot .lbl{transition:transform .15s}
+.hotspot:hover .lbl,.hotspot:focus .lbl{transform:translateY(-3px)}
+.hotspot:focus{outline:none}
+.hotspot:focus .lblbox{stroke-width:3.5}
+.hotspot .teaser{opacity:0;transition:opacity .15s}
+.hotspot:hover .teaser,.hotspot:focus .teaser{opacity:1}
+
+/* ============ region view ============ */
+.region-head{border-bottom:2.5px solid var(--ink)}
+.region-band{height:.7rem;background:var(--acc)}
+.region-title-row{display:flex;align-items:center;gap:1.2rem;padding:.9rem 4vw;background:var(--cream);flex-wrap:wrap}
+.region-stamp{
+  width:3.4rem;height:3.4rem;border:2px dashed var(--ink);display:flex;align-items:center;justify-content:center;
+  background:var(--paper);font-size:1.5rem;transform:rotate(-3deg);box-shadow:2px 2px 0 var(--ink);
+}
+.region-title-row h2{font-family:var(--f-display);font-size:clamp(1.5rem,3.4vw,2.3rem)}
+.region-title-row .teaser-line{font-size:.75rem;opacity:.8;flex-basis:100%;max-width:44em}
+.region-body{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(280px,1fr);gap:1.6rem;padding:1.6rem 4vw;align-items:start}
+@media(max-width:900px){.region-body{grid-template-columns:1fr}}
+.region-map-panel{position:relative;background:var(--cream);padding:.8rem;border:2.5px solid var(--ink);box-shadow:6px 6px 0 var(--ink)}
+.region-map-panel svg{width:100%;height:auto;display:block}
+.layer-toggle{
+  position:absolute;top:1.1rem;right:1.1rem;display:flex;z-index:5;
+  border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);background:var(--paper);
+}
+.layer-toggle button{
+  font-family:var(--f-cond);font-weight:700;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;
+  padding:.5em .9em;background:var(--paper);border:none;border-right:2px solid var(--ink);
+}
+.layer-toggle button:last-child{border-right:none}
+.layer-toggle button.on{background:var(--ink);color:var(--cream)}
+.side-panel{display:flex;flex-direction:column;gap:1rem}
+.panel-h{font-family:var(--f-cond);font-weight:700;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;opacity:.75;margin-top:.4rem}
+.panel-h::after{content:" ————";opacity:.4}
+.trailcard{
+  position:relative;background:var(--cream);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);
+  padding:.8rem 1rem .8rem 1.9rem;display:block;transition:transform .1s,box-shadow .1s;
+}
+.trailcard:hover,.trailcard.hl{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.trailcard::before{ /* punched hole */
+  content:"";position:absolute;left:.6rem;top:50%;width:.55rem;height:.55rem;margin-top:-.32rem;
+  border-radius:50%;border:2px solid var(--ink);background:var(--paper);
+}
+.trailcard h4{font-family:var(--f-cond);font-weight:700;letter-spacing:.05em;font-size:.95rem;text-transform:uppercase}
+.trailcard .stats{display:flex;gap:1.1em;font-size:.68rem;margin-top:.35em;flex-wrap:wrap}
+.trailcard .stats b{font-family:var(--f-cond);letter-spacing:.08em}
+.diff{color:var(--acc,#b5432e);letter-spacing:.15em}
+.tagrow{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.2rem}
+
+/* map markers */
+.trailpath{fill:none;stroke:var(--acc);stroke-width:3.5;stroke-dasharray:7 6;stroke-linecap:round}
+.marker{cursor:pointer}
+.marker circle.pin,.marker rect.pin{transition:transform .1s}
+.marker:hover circle.pin,.marker.hl circle.pin,.marker:hover rect.pin,.marker.hl rect.pin{transform:scale(1.25);transform-origin:center;transform-box:fill-box}
+.contours path{fill:none;stroke:#8a6f4d;stroke-width:1.4;opacity:0}
+.rsvg.layer-topo .contours path{opacity:.75}
+.rsvg.layer-topo .terrain{opacity:.22}
+.rsvg.layer-topo .rmroad{opacity:.35}
+.rsvg.layer-trails .terrain{opacity:.18}
+.rsvg.layer-trails .rmroad{opacity:.3}
+.rsvg.layer-trails .trailpath{stroke-width:5.5;stroke-dasharray:none}
+.rsvg .terrain,.rsvg .rmroad,.rsvg .trailpath,.rsvg .contours path{transition:opacity .2s,stroke-width .2s}
+
+/* ============ detail sheet ============ */
+.sheet-scrim{position:fixed;inset:0;background:rgba(27,24,18,.5);z-index:20;animation:fadein .25s both}
+@keyframes fadein{from{opacity:0}}
+.sheet{
+  position:fixed;z-index:21;inset:0;margin:auto;width:min(46rem,94vw);height:fit-content;max-height:92vh;overflow:auto;
+  background:var(--cream);border:3px solid var(--ink);box-shadow:9px 9px 0 var(--ink);
+  animation:sheetup .3s ease both;
+}
+@keyframes sheetup{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+.sheet .band{height:.8rem;background:var(--acc)}
+.sheet-inner{padding:1.4rem 2rem 2.2rem;position:relative}
+.sheet .close{
+  position:absolute;top:1rem;right:1rem;background:var(--paper);border:2px solid var(--ink);
+  box-shadow:2px 2px 0 var(--ink);font-family:var(--f-cond);font-weight:700;font-size:.62rem;
+  letter-spacing:.12em;padding:.4em .8em;text-transform:uppercase;
+}
+.sheet .typelbl{font-family:var(--f-cond);font-weight:700;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:.3em}
+.sheet h2{font-family:var(--f-display);font-size:clamp(1.6rem,4vw,2.4rem);line-height:1.05;max-width:14em}
+.statrow{
+  display:flex;gap:0;margin:1.2rem 0;border:2px solid var(--ink);background:var(--paper);
+  box-shadow:3px 3px 0 var(--ink);flex-wrap:wrap;
+}
+.stat{flex:1;min-width:7.5rem;padding:.7rem .9rem;border-right:2px dashed var(--ink)}
+.stat:last-child{border-right:none}
+.stat .l{font-family:var(--f-cond);font-weight:700;font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;opacity:.6}
+.stat .v{font-size:.86rem;margin-top:.25em}
+.stat .v.diff{font-size:.8rem}
+.sec-h{font-family:var(--f-cond);font-weight:700;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;opacity:.7;margin:1.4rem 0 .6rem}
+.sec-h::after{content:" ————";opacity:.4}
+.elev-wrap{border:2px solid var(--ink);background:var(--paper);padding:.7rem;box-shadow:3px 3px 0 var(--ink)}
+.elev-wrap svg{width:100%;height:auto;display:block}
+.seerow{display:flex;gap:.6rem;flex-wrap:wrap}
+.see{
+  border:2px dashed var(--ink);background:var(--paper);padding:.45em .8em;
+  font-family:var(--f-cond);font-weight:700;font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;
+}
+.season-line{font-family:var(--f-cond);font-weight:700;letter-spacing:.16em;font-size:.78rem;color:var(--acc)}
+.tip{
+  position:relative;border:2.5px double var(--verm);color:#7a2c15;background:rgba(232,80,42,.06);
+  padding:.9rem 1.1rem .9rem 1.1rem;margin-top:.8rem;font-size:.78rem;line-height:1.55;transform:rotate(-.5deg);
+}
+.tip + .tip{transform:rotate(.6deg)}
+.tip .tiplbl{
+  position:absolute;top:-.85em;left:.9rem;background:var(--cream);padding:0 .5em;color:var(--verm);
+  font-family:var(--f-cond);font-weight:700;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;
+}
+.sheet .maplink{margin-top:1.6rem;display:inline-block}
+
+/* toast stamp */
+#toast{
+  position:fixed;left:50%;top:18%;z-index:50;transform:translateX(-50%) rotate(-8deg) scale(.8);
+  width:11rem;height:11rem;border-radius:50%;border:4px double var(--verm);color:var(--verm);
+  display:none;align-items:center;justify-content:center;text-align:center;pointer-events:none;
+  font-family:var(--f-cond);font-weight:700;font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;
+  background:rgba(244,236,216,.85);padding:1rem;
+}
+#toast.show{display:flex;animation:stampin 1.6s ease both}
+@keyframes stampin{
+  0%{opacity:0;transform:translateX(-50%) rotate(-8deg) scale(1.6)}
+  12%{opacity:1;transform:translateX(-50%) rotate(-8deg) scale(1)}
+  80%{opacity:1}100%{opacity:0}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status"></div>
+
+<script>
+/* =====================================================================
+   PLACEHOLDER DATA — shapes match the data contracts named in the spec.
+   Real NPS / USGS sourcing replaces the values, not the structure.
+   ===================================================================== */
+const REGIONS = [
+{
+  id:"mammoth", name:"Mammoth Hot Springs", accent:"var(--acc-mammoth)", icon:"◍",
+  teaser:"Travertine terraces & elk on the parade ground",
+  wildlife:[{n:"Elk"},{n:"Bighorn",s:"winter"},{n:"Uinta Squirrel"}],
+  vegetation:["Geothermal-Adapted","Juniper Steppe"],
+  peaks:[[380,390,130],[120,90,80]],
+  features:[
+    {k:"forest",d:"M0,300 Q80,240 160,300 T340,340 Q400,390 350,480 L0,480 Z"},
+    {k:"thermal",c:[[170,200,22],[192,232,15],[152,242,11]]},
+    {k:"river",d:"M420,0 C400,120 430,240 410,360 C400,420 420,460 430,480"},
+    {k:"road",d:"M240,0 C250,100 240,200 260,300 C270,380 250,440 260,480"}
+  ],
+  items:[
+    {id:"upper-terraces",t:"trail",name:"Upper Terraces Loop",dist:"1.5 MI",diff:"easy",time:"1 HR",
+     head:"Upper Terrace Dr pull-out",pin:[150,240],
+     d:"M200,180 C160,170 130,200 150,240 C165,270 210,265 215,230 C218,205 210,188 200,180 Z",
+     see:["Travertine Terraces","Geothermal","Hot Spring Runoff"],season:"YEAR-ROUND · GO EARLY",
+     elev:[6300,6340,6390,6420,6450,6440,6410,6370,6330,6300],
+     tips:["The terraces change monthly — whatever photo you saw, it looks different now.","Boardwalk ice lingers into May on the shaded stretches."]},
+    {id:"beaver-ponds",t:"trail",name:"Beaver Ponds Loop",dist:"5.0 MI",diff:"moderate",time:"2.5–3 HR",
+     head:"Sepulcher Mtn trailhead, behind Liberty Cap",pin:[120,110],
+     d:"M250,150 C210,110 160,90 120,110 C90,125 100,170 140,180 C180,190 220,175 250,150 Z",
+     see:["Beaver Ponds","Aspen Groves","Wildlife Corridor"],season:"MAY–OCT · MORNING",
+     elev:[6240,6420,6600,6710,6650,6580,6500,6380,6280,6240],
+     tips:["Carry spray — black bears work these slopes in early summer."]},
+    {id:"bunsen-peak",t:"trail",name:"Bunsen Peak",dist:"4.6 MI",diff:"strenuous",time:"3 HR",
+     head:"Bunsen Peak Rd gate, Golden Gate",pin:[380,380],
+     d:"M300,320 C330,340 352,358 380,380",
+     see:["Summit View","Golden Gate Canyon","Raptors"],season:"JUNE–OCT · BEFORE NOON",
+     elev:[7250,7500,7800,8100,8350,8564,8350,8000,7600,7250],
+     tips:["Start before 8 — the pull-out fills by mid-morning and the west face bakes after noon."]},
+    {id:"minerva-terrace",t:"spot",name:"Minerva Terrace",dist:"0.2 MI",diff:"easy",time:"20 MIN",
+     head:"Lower Terrace boardwalk",pin:[185,205],
+     see:["Travertine Terraces","Geothermal"],season:"YEAR-ROUND",elev:null,
+     tips:["Dry white terrace one year, flowing orange the next — the springs migrate."]},
+    {id:"liberty-cap",t:"spot",name:"Liberty Cap",dist:"0.1 MI",diff:"easy",time:"10 MIN",
+     head:"Mammoth lower parking",pin:[230,165],
+     see:["Extinct Hot Spring Cone"],season:"YEAR-ROUND",elev:null,
+     tips:["37 feet of dormant spring cone — the plumbing sealed itself shut."]}
+  ]
+},
+{
+  id:"tower", name:"Tower–Roosevelt / Northeast", accent:"var(--acc-tower)", icon:"✦",
+  teaser:"Basalt canyons, petrified trees, big-sky ridge walks",
+  wildlife:[{n:"Black Bear",s:"spring"},{n:"Bison"},{n:"Peregrine"}],
+  vegetation:["Douglas-Fir","Aspen Groves"],
+  peaks:[[320,350,150]],
+  features:[
+    {k:"forest",d:"M0,0 L120,0 C100,100 90,220 110,340 C120,420 100,470 60,480 L0,480 Z"},
+    {k:"river",d:"M280,0 C300,80 310,160 300,240 C292,300 300,380 320,480"},
+    {k:"road",d:"M200,0 C210,80 200,160 220,240 C240,330 230,410 250,480"}
+  ],
+  items:[
+    {id:"mount-washburn",t:"trail",name:"Mount Washburn",dist:"6.4 MI",diff:"strenuous",time:"4 HR",
+     head:"Dunraven Pass lot",pin:[318,336],
+     d:"M245,385 C275,378 296,368 286,355 C276,345 300,342 318,336",
+     see:["Summit View","Fire Lookout","Bighorn"],season:"JULY–SEPT · MORNING",
+     elev:[8850,9100,9400,9700,10000,10243,10000,9600,9200,8850],
+     tips:["Bighorn hang just below the summit lookout; the fire tower has the only shade."]},
+    {id:"lost-lake",t:"trail",name:"Lost Lake Loop",dist:"2.8 MI",diff:"moderate",time:"2 HR",
+     head:"Behind Roosevelt Lodge",pin:[150,232],
+     d:"M200,185 C180,205 160,220 150,232 C140,245 155,255 170,247 C190,237 200,210 200,185 Z",
+     see:["Lake","Waterfall","Sagebrush Bench"],season:"MAY–OCT · ANY TIME",
+     elev:[6270,6400,6520,6560,6540,6480,6390,6300,6270,6270],
+     tips:["The Petrified Tree lot connects to this loop — do both in one go."]},
+    {id:"yr-picnic",t:"trail",name:"Yellowstone River Picnic Trail",dist:"3.7 MI",diff:"moderate",time:"2 HR",
+     head:"Picnic area 1.25 mi E of Tower Jct",pin:[378,200],
+     d:"M300,145 C330,160 355,180 378,200",
+     see:["Canyon Rim","Basalt Columns","The Narrows"],season:"MAY–OCT · EVENING",
+     elev:[6300,6380,6450,6500,6520,6500,6450,6380,6320,6300],
+     tips:["Overlooked rim views of the Narrows — watch for peregrines off the basalt."]},
+    {id:"tower-fall",t:"spot",name:"Tower Fall",dist:"0.2 MI",diff:"easy",time:"20 MIN",
+     head:"Tower Fall General Store",pin:[305,205],
+     see:["Waterfall","Volcanic Pinnacles"],season:"YEAR-ROUND",elev:null,
+     tips:["132 feet, framed by the pinnacles that named the region."]},
+    {id:"petrified-tree",t:"spot",name:"Petrified Tree",dist:"0.1 MI",diff:"easy",time:"10 MIN",
+     head:"Petrified Tree spur road",pin:[152,172],
+     see:["Fossil Redwood"],season:"YEAR-ROUND",elev:null,
+     tips:["A 50-million-year-old redwood, standing where it grew."]}
+  ]
+},
+{
+  id:"lamar", name:"Lamar Valley", accent:"var(--acc-lamar)", icon:"❋",
+  teaser:"America's Serengeti — wolves, bison, open range",
+  wildlife:[{n:"Wolves",s:"dawn"},{n:"Bison",s:"spring"},{n:"Pronghorn"},{n:"Grizzly",s:"spring"}],
+  vegetation:["Sagebrush Steppe","Riverine Meadow"],
+  peaks:[[300,440,140],[520,60,90]],
+  features:[
+    {k:"meadow",d:"M0,260 C120,200 240,180 360,190 C480,200 560,180 600,150 L600,300 C480,330 320,340 200,330 C120,325 40,330 0,320 Z"},
+    {k:"water",c:[[490,102,12]]},
+    {k:"river",d:"M0,300 C80,280 120,300 180,285 C240,270 260,290 320,275 C380,260 420,270 470,250 C520,232 560,225 600,205"},
+    {k:"road",d:"M0,270 C100,250 200,255 300,240 C400,225 500,200 600,165"}
+  ],
+  items:[
+    {id:"lamar-river",t:"trail",name:"Lamar River Trail",dist:"7.0 MI",diff:"moderate",time:"4 HR",
+     head:"Soda Butte Ck footbridge lot",pin:[500,410],
+     d:"M420,290 C440,330 460,370 500,410",
+     see:["Wildlife Corridor","River Meadow","Backcountry"],season:"JUNE–OCT · DAWN",
+     elev:[6550,6600,6640,6700,6760,6820,6880,6920,6960,7000],
+     tips:["Dawn. Not sunrise-ish — dawn. The wolf watchers with scopes are set up by 5:30 and they'll let you look.","Bison own the trail; a quarter mile detour is normal."]},
+    {id:"trout-lake",t:"trail",name:"Trout Lake",dist:"1.2 MI",diff:"easy",time:"1 HR",
+     head:"Pull-out S of Pebble Ck",pin:[480,100],
+     d:"M455,150 C462,130 472,113 480,100 C495,90 505,102 497,118 C490,132 470,145 455,150 Z",
+     see:["Lake","Otters","Cutthroat Spawn"],season:"JUNE–SEPT · MORNING",
+     elev:[6800,6870,6950,6990,6970,6950,6900,6840,6800,6800],
+     tips:["Otters work the inlet in June."]},
+    {id:"specimen-ridge",t:"trail",name:"Specimen Ridge",dist:"8.5 MI",diff:"strenuous",time:"6 HR",
+     head:"Specimen Ridge trailhead, Northeast Rd",pin:[345,400],
+     d:"M210,310 C250,340 300,370 345,400",
+     see:["Petrified Forest","Ridge Line","Summit View"],season:"JULY–SEPT · EARLY",
+     elev:[6600,7000,7400,7800,8200,8500,8564,8400,8100,7800],
+     tips:["No shade, no water — this is a fall hike."]},
+    {id:"buffalo-ranch",t:"spot",name:"Lamar Buffalo Ranch",dist:"0.1 MI",diff:"easy",time:"15 MIN",
+     head:"Historic ranch pull-out",pin:[335,235],
+     see:["Historic District","Bison Range"],season:"YEAR-ROUND",elev:null,
+     tips:["Where the species was pulled back from 23 animals. The herd outside is the sequel."]},
+    {id:"soda-butte",t:"spot",name:"Soda Butte",dist:"0.1 MI",diff:"easy",time:"10 MIN",
+     head:"Soda Butte pull-out",pin:[500,195],
+     see:["Extinct Hot Spring Cone"],season:"YEAR-ROUND",elev:null,
+     tips:["The valley's lone travertine cone — proof the plumbing reaches even here."]}
+  ]
+},
+{
+  id:"canyon", name:"Grand Canyon of the Yellowstone", accent:"var(--acc-canyon)", icon:"▼",
+  teaser:"A thousand feet of painted rock & two great falls",
+  wildlife:[{n:"Osprey",s:"summer"},{n:"Black Bear"}],
+  vegetation:["Lodgepole Forest","Canyon Rim"],
+  peaks:[[500,420,120]],
+  features:[
+    {k:"forest",d:"M0,480 L600,480 L600,380 C420,400 200,420 0,440 Z"},
+    {k:"canyon",d:"M140,220 C220,180 320,150 420,120 L450,150 C350,180 250,210 170,255 Z"},
+    {k:"river",d:"M150,238 C250,195 350,163 435,135"},
+    {k:"road",d:"M100,120 C160,160 200,220 190,300 C185,350 160,420 140,480"}
+  ],
+  items:[
+    {id:"north-rim",t:"trail",name:"North Rim Trail",dist:"3.0 MI",diff:"easy",time:"2 HR",
+     head:"Brink of Upper Falls lot",pin:[400,115],
+     d:"M150,205 C230,170 320,140 400,115",
+     see:["Canyon Rim","Waterfall","Osprey Nests"],season:"MAY–OCT · MORNING",
+     elev:[7750,7770,7790,7800,7810,7800,7790,7770,7760,7750],
+     tips:["Walk it south-to-north and the falls stay in front of you."]},
+    {id:"brink-lower",t:"trail",name:"Brink of the Lower Falls",dist:"0.7 MI",diff:"strenuous",time:"1 HR",
+     head:"North Rim Dr, Brink lot",pin:[252,228],
+     d:"M225,185 C235,200 245,212 252,228",
+     see:["Waterfall","Canyon Rim"],season:"MAY–OCT · EARLY",
+     elev:[7800,7740,7660,7580,7500,7580,7660,7740,7800,7800],
+     tips:["It's 600 ft down and 600 ft back up — budget the climb, not the descent."]},
+    {id:"south-rim-artist",t:"trail",name:"South Rim to Artist Point",dist:"1.7 MI",diff:"easy",time:"1 HR",
+     head:"Uncle Tom's lot, South Rim Dr",pin:[428,252],
+     d:"M185,300 C270,265 350,240 428,252",
+     see:["Canyon Rim","Waterfall","Painted Rock"],season:"MAY–OCT · EVENING",
+     elev:[7730,7740,7750,7760,7770,7760,7750,7745,7740,7730],
+     tips:["The canyon glows pink and gold at 7pm; everyone shoots it at noon."]},
+    {id:"artist-point",t:"spot",name:"Artist Point",dist:"0.1 MI",diff:"easy",time:"20 MIN",
+     head:"Artist Point lot",pin:[435,258],
+     see:["Waterfall","Canyon View"],season:"YEAR-ROUND",elev:null,
+     tips:["Moran painted it; Congress saw the painting; the park exists. This view did that."]},
+    {id:"lookout-point",t:"spot",name:"Lookout Point",dist:"0.1 MI",diff:"easy",time:"15 MIN",
+     head:"North Rim Dr",pin:[300,155],
+     see:["Waterfall","Osprey Nests"],season:"YEAR-ROUND",elev:null,
+     tips:["Bring binoculars — the osprey nest on the canyon spires below."]}
+  ]
+},
+{
+  id:"lake", name:"Yellowstone Lake", accent:"var(--acc-lake)", icon:"≈",
+  teaser:"High, cold, enormous — geysers on the shoreline",
+  wildlife:[{n:"Waterfowl",s:"summer"},{n:"Cutthroat Trout"},{n:"Grizzly",s:"spring"}],
+  vegetation:["Lakeshore Meadow","Whitebark Pine"],
+  peaks:[[150,60,110]],
+  features:[
+    {k:"water",d:"M600,60 C520,80 470,140 430,200 C390,260 300,280 260,340 C220,400 240,460 280,480 L600,480 Z"},
+    {k:"water",d:"M180,330 C150,300 90,300 70,340 C55,380 90,420 140,410 C180,400 195,365 180,330 Z"},
+    {k:"thermal",c:[[95,335,7],[110,357,5]]},
+    {k:"road",d:"M0,140 C120,140 260,160 380,220 C440,250 470,300 480,360"}
+  ],
+  items:[
+    {id:"storm-point",t:"trail",name:"Storm Point Loop",dist:"2.3 MI",diff:"easy",time:"1.5 HR",
+     head:"Indian Pond pull-out, E Entrance Rd",pin:[340,265],
+     d:"M310,190 C330,215 345,240 340,265 C337,285 320,290 305,278 C290,265 295,220 310,190 Z",
+     see:["Lakeshore","Marmots","Wind-Bent Pines"],season:"JUNE–SEPT · CALM MORNINGS",
+     elev:[7740,7750,7760,7755,7750,7745,7740,7735,7740,7740],
+     tips:["Bison bed down in the meadow at the trailhead — loop the direction they aren't using."]},
+    {id:"elephant-back",t:"trail",name:"Elephant Back Mountain",dist:"3.6 MI",diff:"moderate",time:"2.5 HR",
+     head:"Pull-out 1 mi S of Fishing Bridge Jct",pin:[120,60],
+     d:"M190,130 C160,100 130,80 120,60 C140,45 170,55 185,75 C200,95 200,115 190,130 Z",
+     see:["Lake Overlook","Lodgepole Forest"],season:"JUNE–SEPT · MORNING",
+     elev:[7800,7950,8100,8250,8400,8600,8400,8200,8000,7800],
+     tips:["Go clockwise — the grade is kinder."]},
+    {id:"west-thumb-basin",t:"trail",name:"West Thumb Geyser Basin",dist:"0.6 MI",diff:"easy",time:"45 MIN",
+     head:"West Thumb lot",pin:[85,365],
+     d:"M95,320 C80,330 75,350 85,365 C95,378 115,375 120,360 C124,345 110,325 95,320 Z",
+     see:["Geothermal","Lakeshore","Hot Springs"],season:"YEAR-ROUND · COLD MORNINGS",
+     elev:[7730,7735,7740,7738,7735,7732,7730,7730,7730,7730],
+     tips:["Fishing Cone steams hardest on cold mornings."]},
+    {id:"lake-hotel",t:"spot",name:"Lake Hotel Veranda",dist:"0.1 MI",diff:"easy",time:"30 MIN",
+     head:"Lake Village",pin:[230,150],
+     see:["Historic Hotel","Lake View"],season:"MAY–OCT",elev:null,
+     tips:["1891, colonial yellow, string quartet in the sunroom. Order coffee and watch the water."]},
+    {id:"fishing-cone",t:"spot",name:"Fishing Cone",dist:"0.2 MI",diff:"easy",time:"15 MIN",
+     head:"West Thumb boardwalk",pin:[100,345],
+     see:["Geothermal","Lakeshore"],season:"YEAR-ROUND",elev:null,
+     tips:["Anglers once cooked their catch in it without taking it off the hook. Don't."]}
+  ]
+},
+{
+  id:"oldfaithful", name:"Old Faithful / Upper Geyser Basin", accent:"var(--acc-oldfaithful)", icon:"⌖",
+  teaser:"The densest geyser field on Earth",
+  wildlife:[{n:"Bison"},{n:"Elk"}],
+  vegetation:["Geothermal-Adapted","Lodgepole Forest"],
+  peaks:[[500,400,140]],
+  features:[
+    {k:"forest",d:"M600,0 L600,480 L420,480 C460,360 470,200 440,80 C430,40 480,0 520,0 Z"},
+    {k:"river",d:"M260,0 C250,90 280,180 270,260 C262,330 280,420 270,480"},
+    {k:"thermal",c:[[300,310,14],[280,250,10],[255,205,9],[235,175,8],[310,270,7]]},
+    {k:"road",d:"M120,480 C160,420 200,380 260,360 C330,340 380,300 420,240"}
+  ],
+  items:[
+    {id:"ugb-boardwalk",t:"trail",name:"Upper Geyser Basin Boardwalk",dist:"2.0 MI",diff:"easy",time:"1.5 HR",
+     head:"Old Faithful Visitor Ed Center",pin:[250,265],
+     d:"M300,325 C260,330 240,300 250,265 C258,235 240,215 225,190 C215,172 225,158 240,165 C260,175 270,200 285,225 C300,250 330,255 330,290 C330,315 318,323 300,325 Z",
+     see:["Geysers","Hot Springs","Geothermal"],season:"YEAR-ROUND · DAWN OR DUSK",
+     elev:[7350,7355,7360,7365,7360,7355,7350,7350,7350,7350],
+     tips:["Check predicted times at the visitor center, then watch Grand instead — longer show, smaller crowd."]},
+    {id:"observation-point",t:"trail",name:"Observation Point",dist:"1.6 MI",diff:"moderate",time:"1 HR",
+     head:"Firehole River footbridge",pin:[372,248],
+     d:"M310,300 C340,285 358,268 372,248",
+     see:["Geyser Overlook","Burned Forest"],season:"APRIL–NOV · ERUPTION TIME",
+     elev:[7350,7400,7460,7510,7550,7510,7460,7400,7360,7350],
+     tips:["Old Faithful from above, no shoulders in your shot."]},
+    {id:"mystic-falls",t:"trail",name:"Mystic Falls",dist:"2.4 MI",diff:"moderate",time:"1.5 HR",
+     head:"Biscuit Basin boardwalk",pin:[80,115],
+     d:"M165,140 C130,132 100,128 80,115",
+     see:["Waterfall","Geothermal","Canyon"],season:"MAY–OCT · MORNING",
+     elev:[7270,7320,7380,7440,7500,7560,7500,7420,7340,7270],
+     tips:["Loop back via the overlook fork — the extra 200 ft buys the whole basin steaming below you."]},
+    {id:"old-faithful-geyser",t:"spot",name:"Old Faithful",dist:"0.1 MI",diff:"easy",time:"90 MIN",
+     head:"Visitor center benches",pin:[300,312],
+     see:["Geyser"],season:"YEAR-ROUND",elev:null,
+     tips:["Every 60–110 minutes, 100–180 feet. The benches face into afternoon sun — stand north side instead."]},
+    {id:"morning-glory",t:"spot",name:"Morning Glory Pool",dist:"1.4 MI",diff:"easy",time:"1 HR",
+     head:"End of the boardwalk",pin:[228,172],
+     see:["Hot Spring","Geothermal"],season:"YEAR-ROUND",elev:null,
+     tips:["The blue is fading from decades of thrown coins — the ranger talk explains why."]}
+  ]
+}
+];
+
+const byId = Object.fromEntries(REGIONS.map(r=>[r.id,r]));
+const DIFF_GLYPH = {easy:"▲", moderate:"▲▲", strenuous:"▲▲▲"};
+const layerState = {};   // per-region session state, not URL state (per spec §6)
+
+/* =====================================================================
+   helpers
+   ===================================================================== */
+const app = document.getElementById("app");
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+function seededWobble(cx,cy,r,seed){
+  const pts=[],n=14;
+  for(let i=0;i<n;i++){
+    const a=i/n*Math.PI*2;
+    const w=1+0.16*Math.sin(seed*3.7+i*2.3)+0.1*Math.cos(seed*1.9+i*4.1);
+    pts.push([cx+Math.cos(a)*r*w, cy+Math.sin(a)*r*w*0.82]);
+  }
+  let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for(let i=1;i<=n;i++){
+    const p=pts[i%n], prev=pts[i-1];
+    d+=` Q${prev[0].toFixed(1)},${prev[1].toFixed(1)} ${((prev[0]+p[0])/2).toFixed(1)},${((prev[1]+p[1])/2).toFixed(1)}`;
+  }
+  return d+" Z";
+}
+function contourGroup(peaks){
+  let out="";
+  peaks.forEach(([cx,cy,r],pi)=>{
+    for(let i=1;i<=4;i++) out+=`<path d="${seededWobble(cx,cy,r*i/4.4,pi*7+i)}"/>`;
+  });
+  return `<g class="contours">${out}</g>`;
+}
+
+/* =====================================================================
+   Level 0 — landing
+   ===================================================================== */
+function heroSVG(){
+  return `<svg class="landing-hero" viewBox="0 0 900 560" aria-hidden="true">
+  <g stroke="#1b1812" stroke-width="4" stroke-linejoin="round">
+    <path d="M180,560 L420,180 L470,240 L520,150 L620,300 L700,220 L900,520 L900,560 Z" fill="#f4ecd8"/>
+    <path d="M420,180 L470,240 L440,300 L360,420 L260,470 L180,560 L320,560 L420,430 Z" fill="#3f9b45"/>
+    <path d="M620,300 L700,220 L820,420 L720,470 Z" fill="#3f9b45"/>
+    <path d="M0,560 L120,480 Q220,430 320,470 L420,520 L420,560 Z" fill="#2e6f3e"/>
+    <ellipse cx="430" cy="520" rx="180" ry="38" fill="#2456a8"/>
+  </g>
+  <g fill="#1e4a2b" stroke="#1b1812" stroke-width="3">
+    <path d="M120,470 l16,-52 l16,52 z M136,418 l0,60"/>
+    <path d="M200,500 l18,-60 l18,60 z"/>
+    <path d="M700,500 l20,-66 l20,66 z"/>
+    <path d="M770,460 l16,-52 l16,52 z"/>
+  </g>
+  <g fill="#f4ecd8" stroke="#1b1812" stroke-width="3.5">
+    <path d="M560,120 q20,-28 52,-18 q10,-22 38,-16 q26,-6 34,14 q22,4 14,24 z"/>
+    <path d="M380,70 q16,-22 42,-14 q8,-18 30,-12 q22,-5 28,11 q18,3 11,19 z"/>
+  </g>
+</svg>`;
+}
+function renderLanding(){
+  document.title="Park Explorer — Prototype";
+  app.innerHTML=`
+<div class="view landing">
+  <div class="halftone"></div>
+  ${heroSVG()}
+  <div class="stampbadge">
+    <div class="big">EXPLORE</div>
+    <div style="font-size:1.3rem;line-height:1">⛰</div>
+    <div class="small smallcaps">America's<br>National Parks</div>
+  </div>
+  <div class="landing-inner">
+    <h1 class="display">Park Explorer</h1>
+    <p class="tagline">Pick a park. Tap the map. Every level down is the same move — from the whole park to a single trail.</p>
+    <div class="search-row">
+      <div class="search-box" role="textbox" aria-label="Park name">Yellowstone<span class="caret">|</span></div>
+      <a class="btn" href="#/park">Explore</a>
+    </div>
+    <div class="try-these">
+      <span class="lbl smallcaps">Try These</span>
+      <div class="try-row">
+        ${["Yosemite","Zion","Banff","Grand Canyon","Acadia"].map(p=>
+          `<button class="chip smallcaps" data-park="${p}">${p}</button>`).join("")}
+      </div>
+    </div>
+  </div>
+  <div class="infocard">
+    <h3>YELLOWSTONE NATIONAL PARK</h3>
+    <div class="est">EST. MARCH 1, 1872</div>
+    <p>The world's first national park, known for its geothermal features, wildlife, and vast wilderness.</p>
+    <div class="rubberstamp">Wild &amp;<br>Worth<br>Protecting</div>
+  </div>
+  <div class="feature-strip">
+    <span><b>⛰</b> Real Geography</span>
+    <span><b>✦</b> Tap-the-Map Nav</span>
+    <span><b>❋</b> Risograph UI</span>
+    <span><b>✉</b> Prototype v1</span>
+  </div>
+</div>`;
+  app.querySelectorAll("[data-park]").forEach(b=>b.addEventListener("click",()=>{
+    const t=document.getElementById("toast");
+    t.textContent="Yellowstone only — prototype";
+    t.classList.remove("show");void t.offsetWidth;t.classList.add("show");
+  }));
+}
+
+/* =====================================================================
+   Level 1 — park overview
+   ===================================================================== */
+const PARK_HOTSPOTS = {   /* stylized-coordinate registration of real regions */
+  mammoth:    {cx:215,cy:140,rx:88,ry:70,  lx:215,ly:80},
+  tower:      {cx:430,cy:172,rx:72,ry:60,  lx:430,ly:105},
+  lamar:      {cx:600,cy:148,rx:100,ry:52, lx:610,ly:85},
+  canyon:     {cx:462,cy:330,rx:85,ry:66,  lx:560,ly:315},
+  oldfaithful:{cx:240,cy:555,rx:95,ry:75,  lx:240,ly:660},
+  lake:       {cx:530,cy:565,rx:128,ry:105,lx:545,ly:695}
+};
+function parkSVG(){
+  const boundary="M100,55 C240,42 420,50 560,45 C660,42 730,60 740,120 C752,240 748,420 742,580 C738,680 700,720 600,724 C440,732 260,730 150,722 C80,716 60,670 62,580 C66,420 60,220 70,120 C74,80 80,58 100,55 Z";
+  const lake="M470,465 C560,438 642,486 646,568 C650,650 572,702 490,692 C432,685 392,640 406,606 C372,616 340,586 356,560 C372,534 410,544 420,560 C424,520 440,478 470,465 Z";
+  const roads=[
+    "M230,140 C300,120 370,140 430,165",            /* mammoth-tower */
+    "M430,165 C455,215 458,270 456,326",            /* tower-canyon */
+    "M456,326 C395,332 330,332 272,330",            /* canyon-norris crossbar */
+    "M272,330 C240,270 226,200 230,140",            /* norris-mammoth */
+    "M272,330 C240,362 214,394 197,430",            /* norris-madison */
+    "M197,430 C205,478 222,520 243,556",            /* madison-old faithful */
+    "M243,556 C295,590 348,600 400,602",            /* OF-west thumb */
+    "M400,602 C430,548 462,506 504,472",            /* WT-lake village */
+    "M504,472 C492,420 474,372 456,326"             /* lake-canyon (hayden) */
+  ];
+  const entrances=[
+    ["M230,140 C228,105 226,72 225,48","N"],
+    ["M430,165 C490,158 560,150 600,142 C650,132 690,112 716,95","NE"],
+    ["M504,472 C580,466 670,460 738,458","E"],
+    ["M400,602 C406,652 410,700 414,742","S"],
+    ["M197,430 C150,428 100,426 66,425","W"]
+  ];
+  const order=["mammoth","tower","lamar","canyon","oldfaithful","lake"]; /* north→south tab order */
+  return `<svg viewBox="0 0 800 780" role="navigation" aria-label="Yellowstone park map — choose a region">
+  <path d="${boundary}" fill="#e9dfc2" stroke="var(--ink)" stroke-width="4"/>
+  <g class="terrain">
+    <path d="M150,600 Q240,540 330,600 T520,640 Q560,660 540,700 L200,700 Q140,660 150,600 Z" fill="#cfe0b8" opacity=".8"/>
+    <path d="M120,220 Q190,180 260,230 T400,250 L390,300 Q250,320 140,290 Z" fill="#cfe0b8" opacity=".65"/>
+    <path d="M640,240 Q690,220 710,270 L700,380 Q660,400 630,370 Z" fill="#cfe0b8" opacity=".6"/>
+  </g>
+  <path d="M500,462 C480,420 470,380 462,335 C455,290 452,240 442,205 C424,170 360,150 305,122" fill="none" stroke="var(--water)" stroke-width="4" opacity=".75"/>
+  <path d="M700,105 C640,130 590,152 545,166 C512,176 482,180 458,180" fill="none" stroke="var(--water)" stroke-width="3.5" opacity=".7"/>
+  <path d="${lake}" fill="var(--water)" stroke="var(--ink)" stroke-width="3.5"/>
+  <g fill="none" stroke="var(--ink)" stroke-width="5" stroke-linecap="round">${roads.map(d=>`<path d="${d}"/>`).join("")}</g>
+  <g fill="none" stroke="var(--cream)" stroke-width="1.8" stroke-dasharray="8 7" stroke-linecap="round">${roads.map(d=>`<path d="${d}"/>`).join("")}</g>
+  <g fill="none" stroke="var(--ink)" stroke-width="4" stroke-dasharray="3 6" stroke-linecap="round" opacity=".8">${entrances.map(([d])=>`<path d="${d}"/>`).join("")}</g>
+  ${entrances.map(([d,lbl])=>{
+    const m=d.match(/C[^C]*?([\d.]+),([\d.]+)$/);return m?`<text x="${+m[1]+(lbl==="W"?-14:8)}" y="${+m[2]+(lbl==="S"?16:4)}" font-family="var(--f-cond)" font-weight="700" font-size="13" letter-spacing="2">${lbl}</text>`:"";
+  }).join("")}
+  ${order.map(id=>{
+    const r=byId[id],h=PARK_HOTSPOTS[id];
+    const name=r.name.toUpperCase(), w=Math.max(name.length*9+34,100);
+    return `<a class="hotspot" href="#/region/${id}" aria-label="${esc(r.name)} — ${esc(r.teaser)}">
+      <ellipse class="zone" cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${r.accent}" opacity=".32" stroke="var(--ink)" stroke-width="2.5" stroke-dasharray="5 5"/>
+      <g class="lbl">
+        <rect class="lblbox" x="${h.lx-w/2}" y="${h.ly-14}" width="${w}" height="26" fill="var(--cream)" stroke="var(--ink)" stroke-width="2.2"/>
+        <rect x="${h.lx-w/2+4}" y="${h.ly-14+4}" width="7" height="18" fill="${r.accent}"/>
+        <text x="${h.lx+7}" y="${h.ly+4}" text-anchor="middle" font-family="var(--f-cond)" font-weight="700" font-size="11.5" letter-spacing="1">${name}</text>
+        <text class="teaser" x="${h.lx}" y="${h.ly+28}" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="var(--ink)">${esc(r.teaser)}</text>
+      </g>
+    </a>`;
+  }).join("")}
+  <text x="530" y="588" text-anchor="middle" font-family="var(--f-cond)" font-weight="700" font-size="12" letter-spacing="2.5" fill="var(--cream)">YELLOWSTONE LAKE</text>
+</svg>`;
+}
+function renderPark(){
+  document.title="Yellowstone — Park Explorer";
+  app.innerHTML=`
+<div class="view park">
+  <div class="topbar">
+    <a class="backstub" href="#/">◀ Search</a>
+    <span class="lockup">Park Explorer</span>
+    <span class="crumb smallcaps">/ Yellowstone / Park Map</span>
+    <span class="smallcaps" style="margin-left:auto;font-size:.62rem;opacity:.6">Tap a region</span>
+  </div>
+  <div class="park-map-wrap">${parkSVG()}</div>
+  <div class="ephemera">Est. March 1, 1872 · 2,221,766 acres · World's first national park</div>
+</div>`;
+}
+
+/* =====================================================================
+   Level 2 — region view (+ Level 3 sheet)
+   ===================================================================== */
+const FEATURE_FILL={forest:"#cfe0b8",meadow:"#e8d9a8",canyon:"#d8a58c",water:"var(--water)",thermal:"#f3c9a4"};
+function regionSVG(r){
+  const layer=layerState[r.id]||"base";
+  const feats=r.features.map(f=>{
+    if(f.c) return `<g class="terrain">${f.c.map(([x,y,rad])=>`<circle cx="${x}" cy="${y}" r="${rad}" fill="${FEATURE_FILL[f.k]}" stroke="var(--ink)" stroke-width="2"/>`).join("")}</g>`;
+    if(f.k==="river") return `<path class="terrain" d="${f.d}" fill="none" stroke="var(--water)" stroke-width="4" opacity=".8"/>`;
+    if(f.k==="road") return `<g class="rmroad"><path d="${f.d}" fill="none" stroke="var(--ink)" stroke-width="4.5" stroke-linecap="round"/><path d="${f.d}" fill="none" stroke="var(--cream)" stroke-width="1.6" stroke-dasharray="7 6"/></g>`;
+    return `<path class="terrain" d="${f.d}" fill="${FEATURE_FILL[f.k]}" stroke="var(--ink)" stroke-width="2.5" opacity=".85"/>`;
+  }).join("");
+  const trails=r.items.map((it,i)=>{
+    const marker = it.t==="trail"
+      ? `<circle class="pin" cx="${it.pin[0]}" cy="${it.pin[1]}" r="12" fill="var(--cream)" stroke="var(--ink)" stroke-width="2.5"/>
+         <text x="${it.pin[0]}" y="${it.pin[1]+4.5}" text-anchor="middle" font-family="var(--f-cond)" font-weight="700" font-size="12">${i+1}</text>`
+      : `<rect class="pin" x="${it.pin[0]-9}" y="${it.pin[1]-9}" width="18" height="18" fill="var(--cream)" stroke="var(--ink)" stroke-width="2" stroke-dasharray="3 2.5" transform="rotate(45 ${it.pin[0]} ${it.pin[1]})"/>
+         <text x="${it.pin[0]}" y="${it.pin[1]+4}" text-anchor="middle" font-size="10">★</text>`;
+    return `${it.t==="trail"&&it.d?`<path class="trailpath" d="${it.d}"/>`:""}
+      <a class="marker" data-id="${it.id}" href="#/region/${r.id}/${it.id}" aria-label="${esc(it.name)}"><title>${esc(it.name)}</title>${marker}</a>`;
+  }).join("");
+  return `<svg class="rsvg layer-${layer}" viewBox="0 0 600 480" style="--acc:${r.accent}" aria-label="${esc(r.name)} map">
+    <rect x="0" y="0" width="600" height="480" fill="#efe6cb" stroke="var(--ink)" stroke-width="3"/>
+    ${feats}
+    ${contourGroup(r.peaks)}
+    ${trails}
+  </svg>`;
+}
+function renderRegion(rid,itemId){
+  const r=byId[rid]; if(!r){location.hash="#/park";return}
+  document.title=`${r.name} — Park Explorer`;
+  const trails=r.items.filter(i=>i.t==="trail"), spots=r.items.filter(i=>i.t==="spot");
+  const card=(it,i)=>`
+    <a class="trailcard" data-id="${it.id}" href="#/region/${r.id}/${it.id}" style="--acc:${r.accent}">
+      <h4>${it.t==="trail"?`${i+1}. `:"★ "}${esc(it.name)}</h4>
+      ${it.t==="trail"?`<div class="stats">
+        <span><b>DIST</b> ${it.dist}</span>
+        <span class="diff"><b>${DIFF_GLYPH[it.diff]}</b> ${it.diff.toUpperCase()}</span>
+        <span><b>TIME</b> ${it.time}</span>
+      </div>`:`<div class="stats"><span>${esc(it.see.join(" · "))}</span></div>`}
+    </a>`;
+  app.innerHTML=`
+<div class="view" style="--acc:${r.accent}">
+  <div class="region-head">
+    <div class="region-band"></div>
+    <div class="region-title-row">
+      <a class="backstub" href="#/park">◀ Park Map</a>
+      <div class="region-stamp">${r.icon}</div>
+      <h2>${esc(r.name)}</h2>
+      <span class="teaser-line">${esc(r.teaser)}</span>
+    </div>
+  </div>
+  <div class="region-body">
+    <div class="region-map-panel">
+      <div class="layer-toggle" role="group" aria-label="Map layer">
+        ${["base","topo","trails"].map(l=>`<button data-layer="${l}" class="${(layerState[r.id]||'base')===l?'on':''}">${l}</button>`).join("")}
+      </div>
+      ${regionSVG(r)}
+    </div>
+    <div class="side-panel">
+      <div class="panel-h">Trails</div>
+      ${trails.map(card).join("")}
+      <div class="panel-h">Top Spots</div>
+      ${spots.map(card).join("")}
+      <div class="panel-h">Likely Wildlife</div>
+      <div class="tagrow">${r.wildlife.map(w=>`<span class="tag smallcaps">${esc(w.n)}${w.s?` <span class="season">· ${w.s}</span>`:""}</span>`).join("")}</div>
+      <div class="panel-h">Biome Character</div>
+      <div class="tagrow">${r.vegetation.map(v=>`<span class="tag veg smallcaps">${esc(v)}</span>`).join("")}</div>
+    </div>
+  </div>
+</div>`;
+  /* layer toggle */
+  app.querySelectorAll("[data-layer]").forEach(b=>b.addEventListener("click",()=>{
+    layerState[r.id]=b.dataset.layer;
+    const svg=app.querySelector(".rsvg");
+    svg.classList.remove("layer-base","layer-topo","layer-trails");
+    svg.classList.add("layer-"+b.dataset.layer);
+    app.querySelectorAll("[data-layer]").forEach(x=>x.classList.toggle("on",x===b));
+  }));
+  /* card ⇄ marker highlight sync */
+  const sync=(id,on)=>app.querySelectorAll(`[data-id="${id}"]`).forEach(el=>el.classList.toggle("hl",on));
+  app.querySelectorAll("[data-id]").forEach(el=>{
+    el.addEventListener("mouseenter",()=>sync(el.dataset.id,true));
+    el.addEventListener("mouseleave",()=>sync(el.dataset.id,false));
+  });
+  if(itemId) renderSheet(r,itemId);
+}
+
+/* =====================================================================
+   Level 3 — detail sheet
+   ===================================================================== */
+function elevSVG(pts){
+  const w=520,h=130,pad=8;
+  const min=Math.min(...pts),max=Math.max(...pts),span=Math.max(max-min,40);
+  const X=i=>pad+i*(w-2*pad)/(pts.length-1);
+  const Y=v=>h-pad-((v-min)/span)*(h-2*pad-18);
+  const line=pts.map((v,i)=>`${i?"L":"M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const gain=pts.reduce((g,v,i)=>i&&v>pts[i-1]?g+v-pts[i-1]:g,0);
+  return `<svg viewBox="0 0 ${w} ${h+22}" aria-label="Elevation profile">
+    <defs><pattern id="ht" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.1" fill="var(--acc)" opacity=".35"/></pattern></defs>
+    <path d="${line} L${X(pts.length-1)},${h-2} L${X(0)},${h-2} Z" fill="url(#ht)"/>
+    <path d="${line}" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round"/>
+    <text x="${pad}" y="${h+14}" font-family="var(--f-cond)" font-weight="700" font-size="11" letter-spacing="1.5">MIN ${min.toLocaleString()} FT</text>
+    <text x="${w/2}" y="${h+14}" text-anchor="middle" font-family="var(--f-cond)" font-weight="700" font-size="11" letter-spacing="1.5" fill="var(--acc)">+${Math.round(gain).toLocaleString()} FT GAIN</text>
+    <text x="${w-pad}" y="${h+14}" text-anchor="end" font-family="var(--f-cond)" font-weight="700" font-size="11" letter-spacing="1.5">MAX ${max.toLocaleString()} FT</text>
+  </svg>`;
+}
+function renderSheet(r,itemId){
+  const it=r.items.find(x=>x.id===itemId); if(!it) return;
+  document.title=`${it.name} — ${r.name}`;
+  const sheet=document.createElement("div");
+  sheet.innerHTML=`
+  <div class="sheet-scrim"></div>
+  <div class="sheet" style="--acc:${r.accent}" role="dialog" aria-label="${esc(it.name)}">
+    <div class="band"></div>
+    <div class="sheet-inner">
+      <a class="close" href="#/region/${r.id}">✕ Close</a>
+      <div class="typelbl">${r.icon} ${esc(r.name)} · ${it.t==="trail"?"Trail":"Viewpoint"}</div>
+      <h2>${esc(it.name)}</h2>
+      <div class="statrow">
+        <div class="stat"><div class="l">Distance</div><div class="v">${it.dist}</div></div>
+        <div class="stat"><div class="l">Difficulty</div><div class="v diff" style="color:${r.accent}">${DIFF_GLYPH[it.diff]} ${it.diff.toUpperCase()}</div></div>
+        <div class="stat"><div class="l">Est. Time</div><div class="v">${it.time}</div></div>
+        <div class="stat"><div class="l">Trailhead</div><div class="v">${esc(it.head)}</div></div>
+      </div>
+      ${it.elev?`<div class="sec-h">Elevation Profile</div><div class="elev-wrap">${elevSVG(it.elev)}</div>`:""}
+      <div class="sec-h">What You'll See</div>
+      <div class="seerow">${it.see.map(s=>`<span class="see">${esc(s)}</span>`).join("")}</div>
+      <div class="sec-h">Best Season</div>
+      <div class="season-line">BEST: ${esc(it.season)}</div>
+      ${it.tips.map((t,i)=>`<div class="tip"><span class="tiplbl">${i?"Field Note":"Ranger's Note"}</span>${esc(t)}</div>`).join("")}
+      <a class="maplink backstub" href="#/region/${r.id}">◀ Back to ${esc(r.name)} map</a>
+    </div>
+  </div>`;
+  sheet.querySelector(".sheet-scrim").addEventListener("click",()=>location.hash=`#/region/${r.id}`);
+  app.appendChild(sheet);
+}
+
+/* =====================================================================
+   router — every level is URL-addressable; browser back = in-app back
+   ===================================================================== */
+function route(){
+  const h=location.hash.replace(/^#\/?/,"");
+  const [seg,rid,item]=h.split("/");
+  window.scrollTo(0,0);
+  if(seg==="park") renderPark();
+  else if(seg==="region"&&rid) renderRegion(rid,item);
+  else renderLanding();
+}
+window.addEventListener("hashchange",route);
+route();
+</script>
+</body>
+</html>
